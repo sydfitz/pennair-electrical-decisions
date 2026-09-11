@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PennAiR Application Portal</title>
+<link rel="icon" href="assets/pennair-bird.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0c0f;
+    --bg-2:#131519;
+    --panel:#16181d;
+    --panel-line:#26292f;
+    --penn-blue:#3457a6;
+    --penn-blue-bright:#4d72c9;
+    --penn-red:#b3282d;
+    --penn-red-bright:#d63b3b;
+    --gold:#e8b93f;
+    --ink:#f4f5f7;
+    --muted:#9298a3;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;min-height:100%;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    overflow-x:hidden;
+  }
+  body{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px 18px;
+    position:relative;
+  }
+
+  /* faint horizon-grid + vignette, evokes a HUD / flight-deck feel */
+  .bg-grid{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(77,114,201,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(77,114,201,0.07) 1px, transparent 1px);
+    background-size:44px 44px;
+    mask-image:radial-gradient(ellipse 70% 60% at 50% 40%, black 20%, transparent 75%);
+  }
+  .bg-glow{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(52,87,166,0.25), transparent 60%),
+      radial-gradient(ellipse 50% 35% at 100% 100%, rgba(179,40,45,0.16), transparent 60%);
+  }
+
+  canvas#confetti-canvas{
+    position:fixed;inset:0;pointer-events:none;z-index:50;
+  }
+
+  .wrap{
+    position:relative;
+    z-index:2;
+    width:100%;
+    max-width:600px;
+  }
+
+  .top-logo{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin-bottom:22px;
+  }
+  .top-logo img{
+    height:34px;
+    width:auto;
+    display:block;
+  }
+  .top-logo .wordmark{
+    height:26px;
+    width:auto;
+    display:block;
+  }
+
+  .card{
+    background:linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    border:1px solid var(--panel-line);
+    border-radius:10px;
+    padding:44px 40px 36px;
+    text-align:center;
+    box-shadow:0 40px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.02) inset;
+    animation:riseIn 0.6s cubic-bezier(.2,.9,.25,1) both;
+  }
+  @keyframes riseIn{
+    from{opacity:0; transform:translateY(18px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  .kicker{
+    font-family:'Manrope',sans-serif;
+    font-size:11px;
+    letter-spacing:2.5px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .club-name{
+    font-family:'Manrope',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:1px;
+    margin-bottom:26px;
+  }
+  .club-name .p1{color:var(--penn-blue-bright);}
+  .club-name .p2{color:var(--penn-red-bright);}
+
+  hr.rule{
+    border:none;
+    border-top:1px solid var(--panel-line);
+    margin:0 0 28px;
+  }
+
+  .tag{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    font-family:'Manrope',sans-serif;
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--gold);
+    background:rgba(232,185,63,0.08);
+    border:1px solid rgba(232,185,63,0.35);
+    padding:7px 16px;
+    border-radius:999px;
+    margin-bottom:24px;
+  }
+  .tag .dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--gold);
+    box-shadow:0 0 8px var(--gold);
+  }
+  /* ---------- STATE: PENDING ---------- */
+  #pending h1{
+    font-size:23px;
+    font-weight:600;
+    margin:0 0 14px;
+    color:var(--ink);
+  }
+  #pending p{
+    font-size:15px;
+    line-height:1.75;
+    color:var(--muted);
+    margin:0 0 32px;
+  }
+  #applicant-name-slot{
+    font-weight:700;
+    color:var(--ink);
+  }
+
+  .btn{
+    appearance:none;
+    border:none;
+    cursor:pointer;
+    background:var(--penn-red);
+    color:#fff;
+    font-family:'Manrope',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    padding:15px 32px;
+    border-radius:6px;
+    box-shadow:0 10px 26px rgba(179,40,45,0.35);
+    transition:transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .btn:hover{
+    background:var(--penn-red-bright);
+    transform:translateY(-2px);
+    box-shadow:0 14px 32px rgba(214,59,59,0.45);
+  }
+  .btn:active{transform:translateY(0) scale(0.98);}
+
+  /* ---------- STATE: DECISION ---------- */
+  #decision{display:none;}
+  #decision.show{display:block; animation:riseIn 0.5s ease both;}
+
+  .decision-title{
+    font-size:29px;
+    font-weight:700;
+    color:var(--ink);
+    margin:0 0 6px;
+    line-height:1.3;
+  }
+  .decision-title .highlight{color:var(--penn-red-bright);}
+  .decision-sub{
+    font-family:'Manrope',sans-serif;
+    font-size:12.5px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--penn-blue-bright);
+    margin-bottom:28px;
+  }
+
+  .decision-body{
+    text-align:left;
+    font-size:14.5px;
+    line-height:1.8;
+    color:#d4d7dc;
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--panel-line);
+    border-left:3px solid var(--penn-red);
+    padding:22px 24px;
+    border-radius:6px;
+    margin-bottom:26px;
+  }
+  .decision-body p{margin:0 0 12px;}
+  .decision-body p:last-child{margin-bottom:0;}
+  .signature{
+    font-family:'Manrope',sans-serif;
+    font-size:13px;
+    color:var(--penn-blue-bright);
+    margin-top:8px;
+  }
+
+  @media (max-width:480px){
+    .card{padding:34px 22px 28px;}
+    .decision-title{font-size:23px;}
+    .top-logo img{height:28px;}
+    .top-logo .wordmark{height:22px;}
+  }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+<canvas id="confetti-canvas"></canvas>
+
+<div class="wrap">
+  <div class="top-logo">
+    <img src="assets/pennair-bird.png" alt="PennAiR bird logo">
+  </div>
+
+  <div class="card">
+    <div class="kicker">University of Pennsylvania</div>
+    <div class="club-name"><span class="p1">Penn</span><span class="p2">AiR</span> &nbsp;&middot;&nbsp; Electrical Subteam &middot; Applicant Portal</div>
+    <hr class="rule">
+
+    <!-- PENDING STATE -->
+    <div id="pending">
+      <div class="tag"><span class="dot"></span>Electrical Subteam Decision Ready</div>
+      <h1>Hi <span id="applicant-name-slot">there</span>,</h1>
+      <p>Your PennAiR Electrical application status is in.</p>
+      <button class="btn" id="reveal-btn">View My Decision</button>
+    </div>
+
+    <!-- DECISION STATE -->
+    <div id="decision">
+      <div class="decision-title">Congratulations, <span class="highlight" id="applicant-name-slot-2">there</span>!</div>
+      <div class="decision-sub">Electrical Subteam &middot; PennAiR</div>
+
+      <div class="decision-body">
+        <p>We're thrilled to offer you a spot on the <strong>PennAiR
+        Electrical Subteam</strong>. Out of a highly competitive applicant
+        pool during the Priority round, your skills and enthusiasm for
+        electrical systems stood out to us.</p>
+        <p>You'll be working on the propulsion systems, power distribution,
+        wiring harnesses, and circuit components that keep our aircraft in
+        the sky. We can't wait to see what you build with us.</p>
+        <p>Welcome to the team &mdash; it's time to take flight.</p>
+        <p class="signature">&mdash; Cymberly &amp; Jerry (Electrical Subteam Leads)<br>&amp; the rest of the PennAiR Electrical Team &#128522;</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const name = params.get('name');
+  if(name){
+    const clean = name.replace(/[<>]/g, '').slice(0, 40);
+    document.getElementById('applicant-name-slot').textContent = clean;
+    document.getElementById('applicant-name-slot-2').textContent = clean;
+  }
+
+  const btn = document.getElementById('reveal-btn');
+  const pending = document.getElementById('pending');
+  const decision = document.getElementById('decision');
+
+  btn.addEventListener('click', function(){
+    pending.style.display = 'none';
+    decision.classList.add('show');
+    launchConfetti();
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+
+  // ---------- Lightweight confetti engine (no dependencies) ----------
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const colors = ['#b3282d', '#3457a6', '#e8b93f', '#f4f5f7', '#4d72c9'];
+  let particles = [];
+  let animId = null;
+
+  function spawnBurst(count){
+    for(let i=0;i<count;i++){
+      particles.push({
+        x: Math.random()*W,
+        y: -20 - Math.random()*H*0.3,
+        w: 6 + Math.random()*6,
+        h: 8 + Math.random()*10,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        rotation: Math.random()*360,
+        rotSpeed: (Math.random()-0.5) * 10,
+        vy: 2 + Math.random()*3,
+        vx: (Math.random()-0.5) * 2.5,
+        sway: Math.random()*Math.PI*2,
+        swaySpeed: 0.02 + Math.random()*0.02,
+        life: 0,
+        maxLife: 500 + Math.random()*300
+      });
+    }
+  }
+
+  function tick(){
+    ctx.clearRect(0,0,W,H);
+    particles.forEach(p=>{
+      p.life++;
+      p.sway += p.swaySpeed;
+      p.x += p.vx + Math.sin(p.sway)*1.2;
+      p.y += p.vy;
+      p.rotation += p.rotSpeed;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation * Math.PI/180);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life > p.maxLife - 60 ? Math.max(0,(p.maxLife-p.life)/60) : 1;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    particles = particles.filter(p => p.y < H + 40 && p.life < p.maxLife);
+    if(particles.length > 0){
+      animId = requestAnimationFrame(tick);
+    } else {
+      animId = null;
+    }
+  }
+
+  function launchConfetti(){
+    spawnBurst(160);
+    setTimeout(()=>spawnBurst(90), 300);
+    setTimeout(()=>spawnBurst(70), 700);
+    if(!animId){
+      animId = requestAnimationFrame(tick);
+    }
+  }
+})();
+</script>
+</body>
+</html>
